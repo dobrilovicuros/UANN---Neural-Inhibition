@@ -8,7 +8,7 @@ import { ClusterType } from '../types';
 export type InteractionMatrix = Record<ClusterType, Record<ClusterType, number>>;
 
 // Initial heuristic weights (The starting point for learning)
-let matrix: InteractionMatrix = {
+const DEFAULT_MATRIX: InteractionMatrix = {
   math: {
     math: 0,
     language: -0.8,
@@ -20,14 +20,14 @@ let matrix: InteractionMatrix = {
   language: {
     math: -0.3,
     language: 0,
-    visual: 0.4, // Increased synergy (was 0.1)
+    visual: 0.4,
     logic: 0.2,
     sentiment: 0.5,
     default: 0
   },
   visual: {
     math: -0.1,
-    language: 0.4, // Increased synergy (was 0.1)
+    language: 0.4,
     visual: 0,
     logic: 0.2,
     sentiment: 0.1,
@@ -56,6 +56,16 @@ let matrix: InteractionMatrix = {
     logic: 0,
     sentiment: 0,
     default: 0
+  }
+};
+
+// Load matrix from localStorage or use default
+const savedMatrix = typeof window !== 'undefined' ? localStorage.getItem('uann_interaction_matrix') : null;
+let matrix: InteractionMatrix = savedMatrix ? JSON.parse(savedMatrix) : DEFAULT_MATRIX;
+
+const saveMatrix = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('uann_interaction_matrix', JSON.stringify(matrix));
   }
 };
 
@@ -104,6 +114,9 @@ export const adjustInteractionWeight = (source: ClusterType, target: ClusterType
     // Keep weights within reasonable bounds [-1.5, 1.5]
     matrix[source][target] = Math.max(-1.5, Math.min(1.5, matrix[source][target]));
     
+    // Persist learning
+    saveMatrix();
+
     // Track history
     learningHistory.push({ source, target, delta, timestamp: Date.now() });
     if (learningHistory.length > 50) learningHistory.shift();

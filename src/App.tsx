@@ -318,6 +318,14 @@ export default function App() {
         cloud: 0,
         timestamp: new Date().toLocaleTimeString() + " (LOCAL CACHE)"
       }, ...prev].slice(0, 5));
+
+      // REINFORCE: Matrix learns that current state was successful
+      const estimation = estimateComplexityLocally(input);
+      const activeClusters = Object.entries(estimation.final)
+        .filter(([_, v]) => v > 0.3)
+        .map(([k]) => k as ClusterType);
+      provideFeedback(activeClusters, estimation.raw, activeClusters.reduce((acc, c) => ({...acc, [c]: true}), {}));
+      
       return;
     }
 
@@ -442,13 +450,18 @@ export default function App() {
     setIsEstimating(false);
 
     // 10. DISTILL KNOWLEDGE (Store for future local hit)
+    const activeClusters = Object.keys(clusterResults) as ClusterType[];
     if (cloudClustersCount > 0) {
-      await storeKnowledge(input, synthesis, Object.keys(clusterResults));
+      await storeKnowledge(input, synthesis, activeClusters);
       const updatedKnowledge = await getAllKnowledge();
       setLocalKnowledge(updatedKnowledge);
     }
 
-    // 11. STORE IN MEMORY
+    // 11. REAL LEARNING: Matrix Feedback Loop
+    // Claude's point: Matrix must LEARN from every interaction.
+    provideFeedback(activeClusters, rawScores, utilityMap);
+
+    // 12. STORE IN MEMORY
     addToMemory({
       input,
       profile: newProfile,
@@ -457,7 +470,7 @@ export default function App() {
     });
     setMemory(getMemory());
 
-    // 12. UPDATE CUMULATIVE STATS & REPORT
+    // 13. UPDATE CUMULATIVE STATS & REPORT
     const currentActiveCount = Object.values(utilityMap).filter(v => v).length + 1;
     const standardCost = 0.01;
     const uannCost = (cloudClustersCount * 0.002) + 0.002;
@@ -477,8 +490,6 @@ export default function App() {
       uann: prev.uann + currentActiveCount,
       standard: prev.standard + 6
     }));
-
-    provideFeedback(activeClusters, rawScores, utilityMap);
 
     if (isTraining) {
       setClusterNeurons(prev => {
