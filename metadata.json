@@ -1,0 +1,5 @@
+{
+  "name": "Neural Inhibition Simulator",
+  "description": "A visual simulator for the Dynamic Pruning and Neural Inhibition architecture, featuring a Complexity Estimator, Gating Mechanism, and Brain Cluster visualization.",
+  "requestFramePermissions": []
+}
